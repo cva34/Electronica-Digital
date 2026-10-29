@@ -1,0 +1,177 @@
+entity bloque_procesamiento is
+    port (
+        clk_i   : in  bit;
+        rst_i   : in  bit;
+		
+        q_adc_i_0 : in  bit;
+		q_adc_i_1 : in  bit;
+		q_adc_i_2 : in  bit;
+		
+        hs_o    : out bit;
+        vs_o    : out bit;
+		
+        red_o   : out bit;
+        grn_o   : out bit;
+        blu_o   : out bit
+    );
+end;
+
+architecture bloque_procesamiento_arq of bloque_procesamiento is
+
+    component medicion_voltaje is
+        port (
+            clk_i      : in  bit;
+            rst_i      : in  bit;
+            q_adc_i    : in  bit;
+
+            dig_ent_o  : out bit_vector(3 downto 0);
+            dig_dec1_o : out bit_vector(3 downto 0);
+            dig_dec2_o : out bit_vector(3 downto 0)
+        );
+    end component;
+	
+	component mux3a1_4b is 
+		port (
+			canal_1  : in  bit_vector(3 downto 0); 
+			canal_2	: in  bit_vector(3 downto 0);
+			canal_3 : in bit_vector (3 downto 0);
+			sel  : in  bit_vector(1 downto 0);
+			sal : out bit_vector(3 downto 0)
+		);
+	end component;
+
+    component bloque_vga is
+        port (
+            clk_i      : in  bit;
+            rst_i      : in  bit;
+
+            dig_ent_i  : in  bit_vector(3 downto 0);
+            dig_dec1_i : in  bit_vector(3 downto 0);
+            dig_dec2_i : in  bit_vector(3 downto 0);
+
+            hs_o       : out bit;
+            vs_o       : out bit;
+            red_o      : out bit;
+            grn_o      : out bit;
+            blu_o      : out bit;
+			sel_mux_canales: out bit_vector (1 downto 0)
+        );
+    end component;
+
+
+--bloque med_0
+    signal dig_ent_s  : bit_vector(3 downto 0); 
+    signal dig_dec1_s : bit_vector(3 downto 0); 
+    signal dig_dec2_s : bit_vector(3 downto 0);
+	
+	--Bloque med_1
+	signal dig_ent_s_1 : bit_vector(3 downto 0); 
+    signal dig_dec1_s_1: bit_vector(3 downto 0); 
+    signal dig_dec2_s_1: bit_vector(3 downto 0);
+	
+	--Bloque med_2
+	signal dig_ent_s_2  : bit_vector(3 downto 0); 
+    signal dig_dec1_s_2 : bit_vector(3 downto 0); 
+    signal dig_dec2_s_2 : bit_vector(3 downto 0);
+	
+	--conectan medicion_voltaje con bloque vga
+	signal dig_ent_s_f  : bit_vector(3 downto 0); 
+    signal dig_dec1_s_f: bit_vector(3 downto 0); 
+    signal dig_dec2_s_f : bit_vector(3 downto 0);
+	
+	
+	--Signal Mux 3a1 para selecotra de canales
+	signal sel_canal_s : bit_vector(1 downto 0);
+
+
+begin
+
+    MEDICION_INST_0 : medicion_voltaje
+        port map (
+            clk_i      => clk_i,
+            rst_i      => rst_i,
+            q_adc_i    => q_adc_i_0,
+
+            dig_ent_o  => dig_ent_s,
+            dig_dec1_o => dig_dec1_s,
+            dig_dec2_o => dig_dec2_s
+        );
+		
+	MEDICION_INST_1 : medicion_voltaje
+		port map(
+			clk_i      => clk_i,
+			rst_i      => rst_i,
+			q_adc_i    => q_adc_i_1,
+
+			dig_ent_o  => dig_ent_s_1,
+			dig_dec1_o => dig_dec1_s_1,
+			dig_dec2_o => dig_dec2_s_1
+        );
+				
+		
+	MEDICION_INST_2 : medicion_voltaje
+		port map(
+			clk_i      => clk_i,
+			rst_i      => rst_i,
+			q_adc_i    => q_adc_i_2,
+			
+			dig_ent_o  => dig_ent_s_2,
+			dig_dec1_o => dig_dec1_s_2,
+			dig_dec2_o => dig_dec2_s_2
+        );
+		
+		
+		--MUX DE ENTERO, D1 Y D2
+		MUX_ENT: mux3a1_4b
+			port map(
+				canal_1 => dig_ent_s,
+				canal_2 => dig_ent_s_1,
+				canal_3 => dig_ent_s_2,
+				sel => sel_canal_s,
+				sal => dig_ent_s_f
+				);
+		
+		MUX_DEC1: mux3a1_4b
+			port map(
+				canal_1 => dig_dec1_s,
+				canal_2 => dig_dec1_s_1,
+				canal_3 => dig_dec1_s_2,
+				sel => sel_canal_s,
+				sal => dig_dec1_s_f
+				);
+				
+		MUX_DEC2: mux3a1_4b
+			port map(
+				canal_1 => dig_dec2_s,
+				canal_2 => dig_dec2_s_1,
+				canal_3 => dig_dec2_s_2,
+				sel => sel_canal_s,
+				sal => dig_dec2_s_f
+				);		
+
+
+
+
+
+
+
+    VGA_INST : bloque_vga
+        port map (
+            clk_i      => clk_i,
+            rst_i      => rst_i,
+
+            dig_ent_i  => dig_ent_s_f,
+            dig_dec1_i => dig_dec1_s_f,
+            dig_dec2_i => dig_dec2_s_f,
+
+            hs_o       => hs_o,
+            vs_o       => vs_o,
+            red_o      => red_o,
+            grn_o      => grn_o,
+            blu_o      => blu_o,
+			sel_mux_canales => sel_canal_s
+        );
+		
+		
+
+end;
